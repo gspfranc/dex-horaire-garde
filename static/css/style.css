@@ -752,24 +752,159 @@ input[type="checkbox"] { accent-color: var(--oli); width: 16px; height: 16px; }
   .statcards { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 }
 
-@media (max-width: 720px) {
-  .topbar { flex-wrap: wrap; gap: 12px; }
-  .topbar__nav { order: 3; width: 100%; margin-left: 0; }
-  .topbar__auth { margin-left: auto; }
+/* ------------------------------- téléphones ------------------------------- *
+   À 390 px, une case ne fait qu'une cinquantaine de pixels : le nom du gardien
+   et la note n'y tiennent pas. La case se réduit donc à l'essentiel — numéro,
+   couleur du gardien, initiale, et une pastille signalant une note — le détail
+   restant accessible d'une pression.
+ * -------------------------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  .shell {
+    padding: 12px max(10px, env(safe-area-inset-left))
+             calc(28px + env(safe-area-inset-bottom))
+             max(10px, env(safe-area-inset-right));
+  }
+
+  /* ---- bandeau : une seule rangée ---- */
+  .topbar { padding: 8px max(10px, env(safe-area-inset-left)); gap: 8px; }
+  .brand { gap: 9px; }
+  .brand__mark { width: 34px; height: 34px; border-radius: 10px; }
+  .brand__mark svg { width: 25px; height: 25px; }
+  .brand__text strong { font-size: .98rem; letter-spacing: .1em; }
   .brand__text small { display: none; }
-  .calendar { gap: 5px; }
-  .day { min-height: 70px; padding: 6px 7px 8px; border-radius: 11px; }
-  .day__num { font-size: .86rem; }
-  .day__owner { font-size: .55rem; padding: 2px 5px; }
-  .day__note { font-size: .66rem; -webkit-line-clamp: 2; }
-  .day__paw { display: none; }
-  .monthnav__today { order: 5; }
-  .brushbar { gap: 10px; }
-  .brushbar__hint, .legend__kbd { display: none; }
+  /* Les liens Mois/Année font doublon avec ceux de l'en-tête de page. */
+  .topbar__nav { display: none; }
+  .topbar__auth { gap: 6px; }
+  .pill { padding: 5px 9px; font-size: .68rem; gap: 5px; }
+  .pill .ico { display: none; }
+  .topbar__auth .btn { padding: 7px 12px; font-size: .78rem; }
+
+  .flashes { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(16px + env(safe-area-inset-bottom)); max-width: calc(100% - 24px); }
+
+  /* ---- en-tête de page ---- */
+  .panel--head { padding: 12px; margin-bottom: 12px; }
+  .monthnav { gap: 8px; }
+  .monthnav__title { flex: 1; min-width: 0; text-align: center; }
+  .monthnav__title h1 { font-size: 1.2rem; }
+  .monthnav__year { font-size: .72rem; }
+  .monthnav__today { order: 9; width: 100%; margin-left: 0; }
+  .iconbtn { width: 36px; height: 36px; border-radius: 10px; }
+
+  .brushbar { margin-top: 12px; padding-top: 12px; gap: 8px; }
+  .brushbar__label, .brushbar__hint, .legend__kbd { display: none; }
   .brushbar__group { width: 100%; }
-  .brush { flex: 1; padding: 8px 6px; font-size: .78rem; }
-  .ownerpick { grid-template-columns: 1fr; }
-  .statcard__value strong { font-size: 1.7rem; }
+  .brush { flex: 1; padding: 9px 4px; font-size: .76rem; }
+  .readonly-note { margin-top: 12px; padding-top: 12px; font-size: .78rem; }
+
+  /* ---- calendrier ---- */
+  .panel--calendar { padding: 12px 10px 14px; }
+  .weekdays { gap: 3px; margin-bottom: 6px; padding: 0; }
+  .weekdays span { font-size: .6rem; letter-spacing: .02em; }
+  .calendar { gap: 3px; }
+
+  .day {
+    min-height: 0;
+    aspect-ratio: 1;
+    padding: 0;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+  }
+  .day__top { display: contents; }
+  .day__num { font-size: 1rem; font-weight: 600; line-height: 1; }
+  .day.is-today .day__num { padding: 3px 6px; border-radius: 7px; }
+
+  /* Le nom complet ne tient pas : on n'affiche que l'initiale. */
+  .day__owner {
+    position: absolute; top: 3px; right: 3px;
+    width: 15px; height: 15px; padding: 0;
+    display: grid; place-items: center;
+    border-radius: 5px; font-size: 0; letter-spacing: 0;
+  }
+  .day__owner::after {
+    content: attr(data-initial);
+    font-size: .6rem; font-weight: 800; letter-spacing: 0;
+  }
+
+  /* La note devient une pastille ; son texte reste lisible d'une pression. */
+  .day__note {
+    position: absolute; left: 50%; bottom: 5px;
+    transform: translateX(-50%);
+    margin: 0; font-size: 0; line-height: 0;
+  }
+  .day__note:not(:empty)::before {
+    content: ""; display: block;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor; opacity: .95;
+  }
+  .day__paw { display: none; }
+
+  .legend { gap: 12px; margin-top: 12px; padding-top: 11px; font-size: .73rem; }
+
+  /* ---- statistiques ---- */
+  .panel--stats { padding: 14px; }
+  .statcards { grid-template-columns: 1fr 1fr; }
+  .statcard { padding: 12px; }
+  .statcard--meta { grid-column: 1 / -1; }
+  .statcard__value strong { font-size: 1.55rem; }
+  .statcard__value span { font-size: .7rem; }
+  .datatools__row { grid-template-columns: 1fr 1fr; }
+
+  /* ---- modales en feuille basse ---- */
+  .modal { padding: 0; align-items: end; }
+  .modal__panel {
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+    max-height: 92vh; overflow-y: auto;
+    animation: sheet .28s cubic-bezier(.25, 1, .3, 1);
+  }
+  .ownerpick { grid-template-columns: 1fr 1fr; }
+  /* 16 px évite le zoom automatique de Safari à la mise au point. */
+  .field input[type="text"],
+  .field input[type="password"],
+  .field input[type="date"] { font-size: 16px; padding: 12px 13px; }
+  .field--range { flex-wrap: wrap; }
+  .modal__foot { flex-direction: column-reverse; align-items: stretch; gap: 8px; }
+  .modal__actions { margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .modal__foot .btn { padding: 12px; }
+
+  /* ---- vue année : deux mois par rangée ---- */
+  .minigrid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+  .minimonth { padding: 11px 9px; border-radius: 13px; }
+  .minimonth__head { gap: 5px; margin-bottom: 8px; }
+  .minimonth__head a { font-size: .8rem; }
+  .minimonth__counts { gap: 3px; }
+  .chip { font-size: .62rem; padding: 2px 5px; }
+  .minidate { font-size: .6rem; border-radius: 5px; }
+  .yearsummary { grid-template-columns: 1fr 1fr; }
+
+  .footer { padding: 14px max(10px, env(safe-area-inset-left)); font-size: .72rem; }
+}
+
+@keyframes sheet { from { transform: translateY(100%); } }
+
+/* Très petits écrans : on resserre encore. */
+@media (max-width: 400px) {
+  .day__num { font-size: .92rem; }
+  .day__owner { width: 14px; height: 14px; top: 2px; right: 2px; }
+  .brush { font-size: .72rem; padding: 9px 2px; }
+  .monthnav__title h1 { font-size: 1.1rem; }
+  .minigrid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Écrans tactiles : pas d'effet de survol qui resterait « collé » après une
+   pression, et un retour visuel immédiat à la place. */
+@media (hover: none) {
+  body[data-can-edit="true"] .day:hover,
+  .btn:hover, .iconbtn:hover, .minidate:hover { transform: none; }
+  body[data-can-edit="true"] .day:active { transform: scale(.94); }
+  .btn:active { transform: scale(.97); }
+  .day, .btn, .iconbtn, .brush, .navlink, .minidate {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -56,7 +56,7 @@
                aria-label="{{ d.day }} {{ month_names[d.month - 1] }}{% if entry and entry.owner %} — {{ entry.owner }}{% endif %}{% if entry and entry.note %} — {{ entry.note }}{% endif %}">
             <div class="day__top">
               <span class="day__num">{{ d.day }}</span>
-              <span class="day__owner">{{ entry.owner if entry and entry.owner else '' }}</span>
+              <span class="day__owner" data-initial="{{ entry.owner[0] if entry and entry.owner else '' }}">{{ entry.owner if entry and entry.owner else '' }}</span>
             </div>
             <div class="day__note">{{ entry.note if entry and entry.note else '' }}</div>
             <span class="day__paw">{% include 'partials/paw.svg' %}</span>

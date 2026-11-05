@@ -119,7 +119,11 @@
     cell.dataset.owner = owner;
     const ownerEl = cell.querySelector(".day__owner");
     const noteEl = cell.querySelector(".day__note");
-    if (ownerEl) ownerEl.textContent = owner;
+    if (ownerEl) {
+      ownerEl.textContent = owner;
+      // L'initiale sert d'etiquette sur petit ecran, ou le nom ne tient pas.
+      ownerEl.dataset.initial = owner ? owner.charAt(0) : "";
+    }
     if (noteEl) noteEl.textContent = note;
 
     let label = prettyDate(iso);
@@ -209,7 +213,29 @@
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         if (typeof window.dexActivateCell === "function") window.dexActivateCell(cell);
+        else cell.click();
       }
+    });
+  }
+
+  /* --------------------------- detail en lecture --------------------------- */
+
+  // Sur petit ecran, la note se reduit a une pastille : une pression sur la
+  // journee en revele le contenu. En mode edition la fiche complete s'ouvre
+  // deja, ce repli ne sert donc qu'en lecture seule.
+  if (calendar && !CONFIG.canEdit) {
+    calendar.addEventListener("click", (event) => {
+      const cell = event.target.closest(".day");
+      if (!cell) return;
+      const owner = cell.dataset.owner || "";
+      const noteEl = cell.querySelector(".day__note");
+      const note = noteEl ? noteEl.textContent.trim() : "";
+      if (!owner && !note) return;
+
+      const parts = [prettyDate(cell.dataset.date)];
+      if (owner) parts.push(owner);
+      if (note) parts.push(note);
+      toast(parts.join("  ·  "));
     });
   }
 
@@ -258,7 +284,11 @@
     cell.classList.add("is-painting");
     cell.dataset.owner = brush === ERASE ? "" : brush;
     const ownerEl = cell.querySelector(".day__owner");
-    if (ownerEl) ownerEl.textContent = brush === ERASE ? "" : brush;
+    if (ownerEl) {
+      const name = brush === ERASE ? "" : brush;
+      ownerEl.textContent = name;
+      ownerEl.dataset.initial = name ? name.charAt(0) : "";
+    }
     if (brush === ERASE) {
       const noteEl = cell.querySelector(".day__note");
       if (noteEl) noteEl.textContent = "";
