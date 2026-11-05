@@ -312,6 +312,19 @@ def create_app() -> Flask:
 
     # ----------------------------- contexte -------------------------------- #
 
+    @app.template_global()
+    def static_url(filename: str) -> str:
+        """URL d'un fichier statique horodatee par sa date de modification.
+
+        Evite qu'un navigateur ou un cache intermediaire continue de servir un
+        ancien CSS/JS apres une mise a jour : le lien change avec le fichier.
+        """
+        try:
+            stamp = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+        except OSError:
+            stamp = 0
+        return url_for("static", filename=filename, v=stamp)
+
     @app.context_processor
     def inject_globals():
         today = date.today()

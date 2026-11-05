@@ -435,6 +435,19 @@
     document.body.style.overflow = "";
   }
 
+  /** Affiche une erreur DANS la modale : un message fugace peut passer
+      inapercu et donner l'impression que le bouton ne fait rien. */
+  function showError(node, message) {
+    if (!node) return;
+    node.textContent = message;
+    node.hidden = false;
+  }
+  function hideError(node) {
+    if (!node) return;
+    node.hidden = true;
+    node.textContent = "";
+  }
+
   /** Branche les fermetures (croix, bouton Annuler, fond, touche Echap). */
   function wireClose(node, reset) {
     const close = () => { hideModal(node); if (reset) reset(); };
@@ -456,14 +469,22 @@
     const resetForm = document.getElementById("reset-form");
     const resetInput = document.getElementById("reset-confirm");
     const resetSubmit = document.getElementById("reset-submit");
+    const resetHint = document.getElementById("reset-hint");
+    const resetError = document.getElementById("reset-error");
     const PHRASE = (CONFIG.resetPhrase || "REINITIALISER").toUpperCase();
+    const HINT_IDLE = resetHint ? resetHint.textContent.trim() : "";
 
     const clearReset = () => {
       resetInput.value = "";
       resetSubmit.disabled = true;
       resetSubmit.textContent = "Tout supprimer";
+      hideError(resetError);
+      if (resetHint) {
+        resetHint.textContent = HINT_IDLE;
+        resetHint.classList.remove("is-ready");
+      }
     };
-    const closeReset = wireClose(resetModal, clearReset);
+    wireClose(resetModal, clearReset);
 
     resetOpen.addEventListener("click", () => {
       showModal(resetModal, () => {
@@ -473,14 +494,22 @@
     });
 
     // Le bouton ne s'active qu'avec la phrase exacte : un clic seul ne peut
-    // pas effacer l'historique.
+    // pas effacer l'historique. L'indication dit pourquoi il reste inactif.
     resetInput.addEventListener("input", () => {
-      resetSubmit.disabled = resetInput.value.trim().toUpperCase() !== PHRASE;
+      const ready = resetInput.value.trim().toUpperCase() === PHRASE;
+      resetSubmit.disabled = !ready;
+      if (resetHint) {
+        resetHint.textContent = ready
+          ? "Confirmation reconnue — le bouton est actif."
+          : HINT_IDLE;
+        resetHint.classList.toggle("is-ready", ready);
+      }
     });
 
     resetForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (resetSubmit.disabled) return;
+      hideError(resetError);
       resetSubmit.disabled = true;
       resetSubmit.textContent = "Suppression…";
 
@@ -491,9 +520,12 @@
         });
         finishAndReload("reset", data.removed || 0);
       } catch (error) {
-        if (error.message !== "unauthorized") toast(error.message, true);
-        clearReset();
-        closeReset();
+        if (error.message === "unauthorized") return;
+        // La modale reste ouverte avec le motif affiche, pour que l'echec
+        // soit visible au lieu de passer pour un bouton inerte.
+        showError(resetError, error.message);
+        resetSubmit.textContent = "Réessayer";
+        resetSubmit.disabled = false;
       }
     });
   }
@@ -509,6 +541,7 @@
     const importName = document.getElementById("import-name");
     const importSubmit = document.getElementById("import-submit");
     const dropzone = document.getElementById("import-drop");
+    const importError = document.getElementById("import-error");
     const PLACEHOLDER = importName.textContent;
 
     const clearImport = () => {
@@ -517,6 +550,7 @@
       importSubmit.disabled = true;
       importSubmit.textContent = "Remplacer les données";
       dropzone.classList.remove("is-filled", "is-over");
+      hideError(importError);
     };
     const closeImport = wireClose(importModal, clearImport);
 
@@ -585,8 +619,10 @@
         if (!response.ok) throw new Error(data.error || "Erreur " + response.status);
         finishAndReload("import", data.imported || 0);
       } catch (error) {
-        toast(error.message, true);
-        importSubmit.textContent = "Remplacer les données";
+        // Motif affiche dans la modale : l'utilisateur voit pourquoi le
+        // fichier a ete refuse et peut en choisir un autre.
+        showError(importError, error.message);
+        importSubmit.textContent = "Réessayer";
         importSubmit.disabled = false;
       }
     });
@@ -619,14 +655,19 @@
 
   /** Recharge la page : toutes les cases doivent repartir du nouvel etat. */
   function finishAndReload(kind, count) {
-    sessionStorage.setItem("dex-done", kind + ":" + count);
+    // sessionStorage peut etre bloque par une politique de confidentialite :
+    // le rechargement doit avoir lieu quand meme.
+    try {
+      sessionStorage.setItem("dex-done", kind + ":" + count);
+    } catch (_) { /* message de confirmation simplement omis */ }
     window.location.reload();
   }
 
   // Message affiche apres le rechargement.
-  const done = sessionStorage.getItem("dex-done");
+  let done = null;
+  try { done = sessionStorage.getItem("dex-done"); } catch (_) { done = null; }
   if (done !== null) {
-    sessionStorage.removeItem("dex-done");
+    try { sessionStorage.removeItem("dex-done"); } catch (_) {}
     const [kind, raw] = done.split(":");
     const n = Number(raw) || 0;
     const jours = n + (n > 1 ? " journées" : " journée");

@@ -6,8 +6,8 @@
   <title>{% block title %}DEX — Horaire de garde{% endblock %}</title>
   <meta name="description" content="Calendrier de garde partagée du chien DEX entre Oli et Phil.">
   <meta name="theme-color" content="#0b1120">
-  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="{{ static_url('img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ static_url('css/style.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}" data-can-edit="{{ 'true' if can_edit else 'false' }}">
 

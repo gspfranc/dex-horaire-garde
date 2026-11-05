@@ -219,6 +219,8 @@
       <span class="dropzone__text" id="import-name">Choisir un fichier ou le déposer ici</span>
     </label>
 
+    <p class="modal__error" id="import-error" hidden></p>
+
     <footer class="modal__foot">
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost" data-close>Annuler</button>
@@ -250,11 +252,16 @@
       identique à celle d'un premier démarrage.
     </p>
 
-    <label class="field">
+    <label class="field field--tight">
       <span>Tapez <code>{{ reset_phrase }}</code> pour confirmer</span>
       <input type="text" id="reset-confirm" placeholder="{{ reset_phrase }}"
-             autocapitalize="characters" spellcheck="false">
+             autocapitalize="characters" autocomplete="off" spellcheck="false">
     </label>
+    <p class="fieldhint" id="reset-hint">
+      Le bouton « Tout supprimer » reste inactif jusqu'à ce que le mot soit saisi.
+    </p>
+
+    <p class="modal__error" id="reset-error" hidden></p>
 
     <footer class="modal__foot">
       <div class="modal__actions">
@@ -273,5 +280,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+<script src="{{ static_url('js/app.js') }}" defer></script>
 {% endblock %}

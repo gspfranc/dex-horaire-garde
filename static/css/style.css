@@ -171,6 +171,16 @@ button { font: inherit; }
 .btn:active { transform: translateY(0); }
 .btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
+/* Un bouton inactif doit se voir, sinon le clic sans effet passe pour un bug. */
+.btn:disabled,
+.btn[disabled] {
+  opacity: .4;
+  cursor: not-allowed;
+  filter: saturate(.4);
+}
+.btn:disabled:hover,
+.btn[disabled]:hover { transform: none; filter: saturate(.4); }
+
 .btn--primary {
   background: linear-gradient(135deg, #2dd4bf, #38bdf8);
   border-color: transparent; color: #04212a; font-weight: 680;
@@ -590,6 +600,23 @@ body.brush-on .calendar { touch-action: none; }
   opacity: 1;
   background: rgba(45, 212, 191, .22);
 }
+
+.field--tight { margin-bottom: 8px; }
+
+.fieldhint {
+  margin: 0 0 16px; font-size: .75rem; line-height: 1.5; color: var(--faint);
+  transition: color .18s ease;
+}
+.fieldhint.is-ready { color: #6ee7b7; }
+
+.modal__error {
+  margin: 0 0 16px; padding: 11px 14px;
+  border-radius: 11px;
+  font-size: .81rem; line-height: 1.5; color: #fecdd3;
+  background: rgba(251, 113, 133, .14);
+  border: 1px solid rgba(251, 113, 133, .45);
+}
+.modal__error[hidden] { display: none; }
 
 .field--range { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .field__check {
