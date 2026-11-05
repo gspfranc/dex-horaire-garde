@@ -53,11 +53,28 @@ Pour confier plutôt le stockage à Docker (volume nommé, hors du projet) :
 DEX_DATA_PATH=dex-data docker compose up -d
 ```
 
-> **Sur un hôte Linux**, le conteneur tourne sous l'uid `10001` et doit pouvoir
-> écrire dans le dossier monté : `sudo chown -R 10001:10001 data`. Sous Docker
-> Desktop (Windows, macOS) il n'y a rien à faire. Si les droits manquent,
-> l'application s'arrête avec un message qui l'explique, au lieu d'une erreur
-> de base de données obscure.
+#### Droits d'écriture
+
+Un dossier de l'hôte monté dans un conteneur appartient à l'utilisateur de
+l'hôte, pas à l'utilisateur applicatif. Le conteneur s'en occupe tout seul :
+
+1. il démarre en `root`, aligne le propriétaire du dossier monté sur l'uid
+   `10001`, puis **abandonne les privilèges** pour lancer l'application sous ce
+   compte non privilégié ;
+2. si l'hôte ignore `chown` (partage Windows, montage réseau…), il **continue en
+   `root`** avec un avertissement dans les journaux, plutôt que de refuser de
+   démarrer.
+
+Vous n'avez donc normalement rien à faire. Pour imposer un autre compte :
+
+```bash
+DEX_UID=1000 DEX_GID=1000 docker compose up -d
+```
+
+Et pour fixer vous-même l'utilisateur du conteneur (l'entrypoint n'ajuste alors
+plus rien), ajoutez `user: "1000:1000"` au service dans `docker-compose.yml`.
+Si le dossier n'est pas accessible en écriture dans ce cas, l'application
+s'arrête avec un message qui l'explique, au lieu d'une erreur de base obscure.
 
 ### Sans docker compose
 
@@ -70,6 +87,9 @@ docker run -d --name dex \
   -v "$(pwd)/data:/data" \
   dex-horaire
 ```
+
+> L'option `-v` est **obligatoire** : sans elle, la base vit dans le système de
+> fichiers du conteneur et disparaît avec lui.
 
 ---
 
@@ -185,6 +205,7 @@ Pensez à exporter avant d'importer ou de réinitialiser.
 | `SECRET_KEY` | aléatoire au démarrage | Signature des sessions. **Fixez-la** pour que les sessions survivent à un redémarrage |
 | `DATABASE_URL` | `sqlite:///<DEX_DATA_DIR>/dex.sqlite3` | Chaîne de connexion SQLAlchemy |
 | `DEX_DATA_PATH` | `./data` | Côté hôte : dossier (ou volume nommé) monté dans le conteneur |
+| `DEX_UID` / `DEX_GID` | `10001` | Compte sous lequel l'application tourne dans le conteneur |
 | `DEX_DATA_DIR` | `./data` (`/data` en conteneur) | Dossier de la base de données |
 | `PORT` | `5000` en local, `8080` en conteneur | Port d'écoute |
 
@@ -204,7 +225,8 @@ dex/
 ├── app.py                   # application Flask : modèle, routes, API, statistiques
 ├── requirements.txt
 ├── Dockerfile               # image Python 3.12 slim + gunicorn, utilisateur non root
-├── docker-compose.yml       # service + volume « dex-data »
+├── docker-compose.yml       # service + montage de data/
+├── docker-entrypoint.sh     # droits du volume puis abandon des privilèges
 ├── start.ps1 / start.sh     # lancement local, crée le venv au besoin
 ├── .env.example
 ├── templates/

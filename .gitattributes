@@ -2,6 +2,10 @@
 # scripts shell et le Dockerfile restent utilisables sous Linux.
 * text=auto eol=lf
 
+# Les scripts shell doivent rester en LF : un CRLF dans le shebang rend le
+# point d'entree du conteneur inexecutable.
+*.sh text eol=lf
+
 # Les scripts PowerShell restent en CRLF, c'est leur convention sous Windows.
 *.ps1 text eol=crlf
 
