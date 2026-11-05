@@ -2,8 +2,14 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-data/
+env/
+
+# Le dossier data/ est versionne vide (via .gitkeep) pour exister apres un
+# clone ; son contenu, dont la base SQLite creee au premier demarrage, non.
+data/*
+!data/.gitkeep
 *.sqlite3
 *.db
+
 .env
 .DS_Store

@@ -167,7 +167,8 @@ dex/
 │   ├── css/style.css
 │   ├── js/app.js            # pinceaux, peinture au glisser, fiche, statistiques
 │   └── img/favicon.svg
-└── data/                    # base SQLite (hors conteneur)
+└── data/                    # dossier versionne vide (.gitkeep) ; la base SQLite
+                             # y est creee au premier demarrage, non versionnee
 ```
 
 ## API
