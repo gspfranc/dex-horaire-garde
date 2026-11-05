@@ -419,4 +419,223 @@
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !modal.hidden) closeEditor();
   });
+
+
+  /* ========================= outils de base de donnees ==================== */
+
+  /** Ouvre/ferme une modale en bloquant le defilement de la page. */
+  function showModal(node, onOpen) {
+    closeEditor();
+    node.hidden = false;
+    document.body.style.overflow = "hidden";
+    if (onOpen) onOpen();
+  }
+  function hideModal(node) {
+    node.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  /** Branche les fermetures (croix, bouton Annuler, fond, touche Echap). */
+  function wireClose(node, reset) {
+    const close = () => { hideModal(node); if (reset) reset(); };
+    node.querySelectorAll("[data-close]").forEach((el) =>
+      el.addEventListener("click", close)
+    );
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !node.hidden) close();
+    });
+    return close;
+  }
+
+  /* ----------------------- reinitialisation complete ---------------------- */
+
+  const resetModal = document.getElementById("reset-modal");
+  const resetOpen = document.getElementById("reset-open");
+
+  if (resetModal && resetOpen) {
+    const resetForm = document.getElementById("reset-form");
+    const resetInput = document.getElementById("reset-confirm");
+    const resetSubmit = document.getElementById("reset-submit");
+    const PHRASE = (CONFIG.resetPhrase || "REINITIALISER").toUpperCase();
+
+    const clearReset = () => {
+      resetInput.value = "";
+      resetSubmit.disabled = true;
+      resetSubmit.textContent = "Tout supprimer";
+    };
+    const closeReset = wireClose(resetModal, clearReset);
+
+    resetOpen.addEventListener("click", () => {
+      showModal(resetModal, () => {
+        clearReset();
+        setTimeout(() => resetInput.focus(), 60);
+      });
+    });
+
+    // Le bouton ne s'active qu'avec la phrase exacte : un clic seul ne peut
+    // pas effacer l'historique.
+    resetInput.addEventListener("input", () => {
+      resetSubmit.disabled = resetInput.value.trim().toUpperCase() !== PHRASE;
+    });
+
+    resetForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (resetSubmit.disabled) return;
+      resetSubmit.disabled = true;
+      resetSubmit.textContent = "Suppression…";
+
+      try {
+        const data = await postJSON("/api/reset", {
+          confirm: resetInput.value.trim().toUpperCase(),
+          year: CONFIG.year,
+        });
+        finishAndReload("reset", data.removed || 0);
+      } catch (error) {
+        if (error.message !== "unauthorized") toast(error.message, true);
+        clearReset();
+        closeReset();
+      }
+    });
+  }
+
+  /* ------------------------------- import -------------------------------- */
+
+  const importModal = document.getElementById("import-modal");
+  const importOpen = document.getElementById("import-open");
+
+  if (importModal && importOpen) {
+    const importForm = document.getElementById("import-form");
+    const importFile = document.getElementById("import-file");
+    const importName = document.getElementById("import-name");
+    const importSubmit = document.getElementById("import-submit");
+    const dropzone = document.getElementById("import-drop");
+    const PLACEHOLDER = importName.textContent;
+
+    const clearImport = () => {
+      importFile.value = "";
+      importName.textContent = PLACEHOLDER;
+      importSubmit.disabled = true;
+      importSubmit.textContent = "Remplacer les données";
+      dropzone.classList.remove("is-filled", "is-over");
+    };
+    const closeImport = wireClose(importModal, clearImport);
+
+    importOpen.addEventListener("click", () => showModal(importModal, clearImport));
+
+    const MAX_BYTES = CONFIG.maxImportBytes || 16 * 1024 * 1024;
+
+    function pickFile(file) {
+      if (!file) return;
+
+      // Refus immediat d'un fichier trop gros : evite un envoi inutile, que le
+      // serveur rejetterait en coupant la connexion.
+      if (file.size > MAX_BYTES) {
+        clearImport();
+        importName.textContent =
+          "Fichier trop volumineux (max " + Math.round(MAX_BYTES / 1048576) + " Mo)";
+        toast("Fichier trop volumineux.", true);
+        return;
+      }
+
+      importName.textContent = file.name + " — " + Math.round(file.size / 1024) + " Ko";
+      importSubmit.disabled = false;
+      dropzone.classList.add("is-filled");
+    }
+
+    importFile.addEventListener("change", () => pickFile(importFile.files[0]));
+
+    // Depot par glisser : DataTransfer permet d'alimenter le champ fichier.
+    ["dragenter", "dragover"].forEach((type) =>
+      dropzone.addEventListener(type, (event) => {
+        event.preventDefault();
+        dropzone.classList.add("is-over");
+      })
+    );
+    ["dragleave", "drop"].forEach((type) =>
+      dropzone.addEventListener(type, () => dropzone.classList.remove("is-over"))
+    );
+    dropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const file = event.dataTransfer && event.dataTransfer.files[0];
+      if (!file) return;
+      try {
+        const bag = new DataTransfer();
+        bag.items.add(file);
+        importFile.files = bag.files;
+      } catch (_) { /* navigateur sans DataTransfer inscriptible */ }
+      pickFile(file);
+    });
+
+    importForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const file = importFile.files[0];
+      if (!file) return;
+
+      importSubmit.disabled = true;
+      importSubmit.textContent = "Import…";
+
+      const body = new FormData();
+      body.append("file", file);
+      body.append("year", String(CONFIG.year));
+
+      try {
+        const response = await fetch("/api/import", { method: "POST", body });
+        if (response.status === 401) return bounceToLogin();
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Erreur " + response.status);
+        finishAndReload("import", data.imported || 0);
+      } catch (error) {
+        toast(error.message, true);
+        importSubmit.textContent = "Remplacer les données";
+        importSubmit.disabled = false;
+      }
+    });
+  }
+
+  /* ------------------------------- communs -------------------------------- */
+
+  function bounceToLogin() {
+    toast("Session expirée — reconnectez-vous.", true);
+    setTimeout(() => {
+      window.location.href =
+        "/login?next=" + encodeURIComponent(window.location.pathname);
+    }, 1400);
+  }
+
+  async function postJSON(url, body) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.status === 401) {
+      bounceToLogin();
+      throw new Error("unauthorized");
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Erreur " + response.status);
+    return data;
+  }
+
+  /** Recharge la page : toutes les cases doivent repartir du nouvel etat. */
+  function finishAndReload(kind, count) {
+    sessionStorage.setItem("dex-done", kind + ":" + count);
+    window.location.reload();
+  }
+
+  // Message affiche apres le rechargement.
+  const done = sessionStorage.getItem("dex-done");
+  if (done !== null) {
+    sessionStorage.removeItem("dex-done");
+    const [kind, raw] = done.split(":");
+    const n = Number(raw) || 0;
+    const jours = n + (n > 1 ? " journées" : " journée");
+    toast(
+      kind === "import"
+        ? "Base importée — " + jours + " chargée" + (n > 1 ? "s." : ".")
+        : n > 0
+          ? "Base réinitialisée — " + jours + " supprimée" + (n > 1 ? "s." : ".")
+          : "Base réinitialisée."
+    );
+  }
 })();

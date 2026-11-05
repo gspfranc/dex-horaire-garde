@@ -123,6 +123,35 @@ La vue annuelle rappelle ce même bilan, avec le compte de chaque mois en vignet
 
 ---
 
+### Gérer la base de données
+
+En mode édition, le bas du panneau de statistiques propose trois actions.
+
+| Bouton | Effet |
+|---|---|
+| **Exporter** | Télécharge la base complète en un fichier `dex-AAAA-MM-JJ.sqlite3` |
+| **Importer** | Charge un fichier `.sqlite3` et **remplace** l'horaire actuel |
+| **Réinitialiser** | Efface tout l'historique et recrée une base vierge |
+
+L'export est un instantané cohérent obtenu par l'API de sauvegarde de SQLite,
+pas une copie brute du fichier : il reste fiable même si une écriture est en
+cours. Le fichier obtenu se réimporte tel quel, ce qui en fait une sauvegarde
+et un moyen de déplacer l'horaire d'une machine à l'autre.
+
+Les deux actions destructrices sont protégées :
+
+- **Importer** remplace les données, il ne fusionne pas. Le fichier déposé est
+  traité comme une donnée non fiable : l'application vérifie qu'il s'agit bien
+  d'une base SQLite saine contenant une table `day_entries` exploitable, et
+  revalide chaque ligne (gardien connu, date valide, note tronquée à 500
+  caractères). Un fichier qui ne convient pas est refusé avec un message
+  explicite, sans toucher aux données existantes.
+- **Réinitialiser** exige la saisie du mot `REINITIALISER` ; le bouton de
+  suppression reste inactif tant que la phrase n'est pas exacte. Un simple clic
+  ne peut donc pas effacer l'historique.
+
+Pensez à exporter avant d'importer ou de réinitialiser.
+
 ## Configuration
 
 | Variable | Défaut | Rôle |
@@ -181,6 +210,9 @@ Lecture publique, écriture réservée aux sessions authentifiées.
 | `GET` | `/api/stats?year=2026` | Bilan de l'année (compteurs, parts, écart) |
 | `POST` | `/api/entries` | Enregistrer — `{"dates": ["2026-11-10"], "owner": "Oli", "note": "Vacances"}` |
 | `DELETE` | `/api/entries` | Vider — `{"dates": ["2026-11-10"]}` |
+| `POST` | `/api/reset` | Vide et recrée la base — exige `{"confirm": "REINITIALISER"}` |
+| `POST` | `/api/import` | Remplace les données par un fichier SQLite (`multipart/form-data`, champ `file`) |
+| `GET` | `/export` | Télécharge la base en fichier `.sqlite3` |
 | `GET` | `/healthz` | Sonde de santé (utilisée par Docker) |
 
 `owner` accepte `"Oli"`, `"Phil"` ou `null`. Les champs absents de la charge utile

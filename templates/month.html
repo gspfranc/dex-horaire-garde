@@ -112,6 +112,33 @@
       {% include 'partials/paw.svg' %}
       <span>Totaux annuels, recalculés automatiquement à chaque modification.</span>
     </div>
+
+    {% if can_edit %}
+    <div class="datatools">
+      <span class="datatools__label">Base de données</span>
+
+      <div class="datatools__row">
+        <a class="btn" href="{{ url_for('export_db') }}" download>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Exporter
+        </a>
+        <button type="button" class="btn" id="import-open">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 19h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Importer
+        </button>
+      </div>
+
+      <button type="button" class="btn btn--danger btn--block" id="reset-open">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Réinitialiser
+      </button>
+
+      <p class="datatools__hint">
+        L'export télécharge un fichier <code>.sqlite3</code> réimportable ici.
+        Pensez à en faire un avant d'importer ou de réinitialiser.
+      </p>
+    </div>
+    {% endif %}
   </aside>
 </section>
 
@@ -166,8 +193,83 @@
 </div>
 {% endif %}
 
+{% if can_edit %}
+<div class="modal" id="import-modal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <form class="modal__panel" id="import-form" autocomplete="off">
+    <header class="modal__head">
+      <div>
+        <h2>Importer une base</h2>
+        <p>Fichier <code>.sqlite3</code> issu de « Exporter ».</p>
+      </div>
+      <button type="button" class="iconbtn iconbtn--sm" data-close aria-label="Fermer">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <p class="resetwarn resetwarn--soft">
+      Le contenu importé <b>remplace</b> l'horaire actuel : les journées
+      présentes aujourd'hui et absentes du fichier seront perdues. Exportez
+      d'abord si vous souhaitez garder une copie.
+    </p>
+
+    <label class="dropzone" id="import-drop">
+      <input type="file" id="import-file" accept=".sqlite3,.sqlite,.db,application/vnd.sqlite3,application/x-sqlite3">
+      <span class="dropzone__icon">{% include 'partials/paw.svg' %}</span>
+      <span class="dropzone__text" id="import-name">Choisir un fichier ou le déposer ici</span>
+    </label>
+
+    <footer class="modal__foot">
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-close>Annuler</button>
+        <button type="submit" class="btn btn--primary" id="import-submit" disabled>
+          Remplacer les données
+        </button>
+      </div>
+    </footer>
+  </form>
+</div>
+
+<div class="modal" id="reset-modal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <form class="modal__panel modal__panel--danger" id="reset-form" autocomplete="off">
+    <header class="modal__head">
+      <div>
+        <h2>Réinitialiser la base</h2>
+        <p>Cette action est <b>irréversible</b>.</p>
+      </div>
+      <button type="button" class="iconbtn iconbtn--sm" data-close aria-label="Fermer">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <p class="resetwarn">
+      Toutes les journées attribuées à {{ people['Oli'].label }} et
+      {{ people['Phil'].label }}, ainsi que toutes les notes, <b>pour toutes les
+      années</b>, seront définitivement supprimées. Une base vierge sera recréée,
+      identique à celle d'un premier démarrage.
+    </p>
+
+    <label class="field">
+      <span>Tapez <code>{{ reset_phrase }}</code> pour confirmer</span>
+      <input type="text" id="reset-confirm" placeholder="{{ reset_phrase }}"
+             autocapitalize="characters" spellcheck="false">
+    </label>
+
+    <footer class="modal__foot">
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-close>Annuler</button>
+        <button type="submit" class="btn btn--danger" id="reset-submit" disabled>
+          Tout supprimer
+        </button>
+      </div>
+    </footer>
+  </form>
+</div>
+{% endif %}
+
 <script id="bootstrap-stats" type="application/json">{{ stats|tojson }}</script>
-<script id="bootstrap-config" type="application/json">{{ {'year': year, 'month': month, 'canEdit': can_edit, 'monthNames': month_names, 'dayNames': day_abbr, 'people': people|list} |tojson }}</script>
+<script id="bootstrap-config" type="application/json">{{ {'year': year, 'month': month, 'canEdit': can_edit, 'monthNames': month_names, 'dayNames': day_abbr, 'people': people|list, 'resetPhrase': reset_phrase, 'maxImportBytes': max_import_bytes} |tojson }}</script>
 {% endblock %}
 
 {% block scripts %}

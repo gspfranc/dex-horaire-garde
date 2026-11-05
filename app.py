@@ -8,8 +8,11 @@ de garde de chacun. Lecture seule par defaut; edition apres authentification.
 
 from __future__ import annotations
 
+import io
 import os
 import secrets
+import sqlite3
+import tempfile
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -21,6 +24,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -58,6 +62,80 @@ DAY_ABBR = [_DAY_ABBR_LUNDI[(WEEK_START + i) % 7] for i in range(7)]
 WEEKEND_COLUMNS = tuple(i for i in range(7) if (WEEK_START + i) % 7 >= 5)
 
 NOTE_PRESETS = ["Vacances", "École", "Vétérinaire", "Toilettage", "Voyage", "Garderie"]
+
+# Phrase a saisir pour confirmer la remise a zero de la base.
+RESET_PHRASE = "REINITIALISER"
+
+# Taille maximale d'un fichier de base importe.
+MAX_IMPORT_BYTES = 16 * 1024 * 1024
+
+
+def read_entries_from_sqlite(path: str) -> list[dict]:
+    """Lit les journees d'un fichier SQLite fourni par l'utilisateur.
+
+    Le fichier est traite comme une donnee non fiable : on verifie qu'il s'agit
+    bien d'une base SQLite saine contenant une table « day_entries » exploitable,
+    et chaque valeur est revalidee avant d'etre reinjectee. Leve ValueError avec
+    un message affichable si le fichier ne convient pas.
+    """
+    try:
+        con = sqlite3.connect("file:%s?mode=ro" % path.replace("?", "%3f"), uri=True)
+    except sqlite3.Error:
+        raise ValueError("Fichier illisible.")
+
+    try:
+        try:
+            if con.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise ValueError("La base est corrompue.")
+            tables = {
+                row[0]
+                for row in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+        except sqlite3.DatabaseError:
+            raise ValueError(
+                "Ce fichier n'est pas une base SQLite. Importez le fichier "
+                "obtenu par « Exporter »."
+            )
+
+        if "day_entries" not in tables:
+            raise ValueError(
+                "Aucune table « day_entries » : ce n'est pas une base DEX."
+            )
+
+        columns = {row[1] for row in con.execute("PRAGMA table_info(day_entries)")}
+        missing = {"day", "owner", "note"} - columns
+        if missing:
+            raise ValueError(
+                "Colonnes absentes de « day_entries » : %s." % ", ".join(sorted(missing))
+            )
+
+        found = {}
+        for raw_day, raw_owner, raw_note in con.execute(
+            "SELECT day, owner, note FROM day_entries"
+        ):
+            if isinstance(raw_day, bytes):
+                raw_day = raw_day.decode("utf-8", "replace")
+            if isinstance(raw_day, date):
+                day = raw_day
+            else:
+                try:
+                    day = datetime.strptime(str(raw_day).strip()[:10], "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    continue  # ligne inutilisable : on l'ignore
+
+            owner = raw_owner if raw_owner in PEOPLE else None
+            note = (str(raw_note).strip()[:500] or None) if raw_note else None
+            if owner is None and note is None:
+                continue
+            found[day] = {"day": day, "owner": owner, "note": note}
+
+        if not found:
+            raise ValueError("Ce fichier ne contient aucune journée exploitable.")
+        return list(found.values())
+    finally:
+        con.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -219,6 +297,7 @@ def create_app() -> Flask:
         SESSION_COOKIE_SAMESITE="Lax",
         PERMANENT_SESSION_LIFETIME=timedelta(days=30),
         JSON_SORT_KEYS=False,
+        MAX_CONTENT_LENGTH=MAX_IMPORT_BYTES,
     )
 
     # Mot de passe d'edition : hash si fourni, sinon mot de passe en clair.
@@ -244,6 +323,8 @@ def create_app() -> Flask:
             "day_abbr": DAY_ABBR,
             "weekend_columns": WEEKEND_COLUMNS,
             "note_presets": NOTE_PRESETS,
+            "reset_phrase": RESET_PHRASE,
+            "max_import_bytes": MAX_IMPORT_BYTES,
             "today_iso": today.isoformat(),
             "today_year": today.year,
             "today_month": today.month,
@@ -438,12 +519,154 @@ def create_app() -> Flask:
             stats=build_stats(_stats_year(payload, days[0])),
         )
 
+    @app.post("/api/reset")
+    @editor_required
+    def api_reset():
+        """Vide la base et recree le schema a neuf.
+
+        Action irreversible : elle exige la phrase de confirmation exacte, pour
+        qu'un appel accidentel (ou un clic de trop) ne puisse pas effacer
+        l'historique de garde.
+        """
+        payload = request.get_json(silent=True) or {}
+        if (payload.get("confirm") or "").strip().upper() != RESET_PHRASE:
+            return (
+                jsonify(
+                    error="Confirmation manquante : renvoyez "
+                    '{"confirm": "%s"} pour réinitialiser.' % RESET_PHRASE
+                ),
+                400,
+            )
+
+        removed = DayEntry.query.count()
+
+        # Reconstruction complete du schema, pas un simple DELETE : on repart
+        # d'une base identique a celle d'un premier demarrage.
+        db.session.close()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        app.logger.warning("Base reinitialisee : %d journee(s) supprimee(s).", removed)
+        return jsonify(
+            ok=True,
+            removed=removed,
+            stats=build_stats(_stats_year(payload, date.today())),
+        )
+
+    def sqlite_file() -> str | None:
+        """Chemin du fichier SQLite, ou None si la base n'en est pas une."""
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        prefix = "sqlite:///"
+        return uri[len(prefix):] if uri.startswith(prefix) else None
+
+    # L'export est un lien que le navigateur suit : hors de /api/ pour qu'une
+    # session expiree renvoie vers la page de connexion plutot qu'un JSON brut.
+    @app.get("/export")
+    @editor_required
+    def export_db():
+        path = sqlite_file()
+        if not path or not os.path.exists(path):
+            return (
+                render_template(
+                    "error.html",
+                    code=400,
+                    message="L'export de fichier n'est possible qu'avec une base SQLite.",
+                ),
+                400,
+            )
+
+        db.session.commit()
+
+        # Copie par l'API de sauvegarde SQLite : donne un instantane coherent
+        # meme si une ecriture est en cours, contrairement a une copie brute.
+        handle, tmp = tempfile.mkstemp(suffix=".sqlite3")
+        os.close(handle)
+        try:
+            source = sqlite3.connect(path)
+            target = sqlite3.connect(tmp)
+            try:
+                with target:
+                    source.backup(target)
+            finally:
+                target.close()
+                source.close()
+            with open(tmp, "rb") as fh:
+                blob = fh.read()
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+        return send_file(
+            io.BytesIO(blob),
+            as_attachment=True,
+            download_name="dex-%s.sqlite3" % date.today().isoformat(),
+            mimetype="application/vnd.sqlite3",
+        )
+
+    @app.post("/api/import")
+    @editor_required
+    def api_import():
+        upload = request.files.get("file")
+        if upload is None or not upload.filename:
+            return jsonify(error="Aucun fichier fourni."), 400
+
+        handle, tmp = tempfile.mkstemp(suffix=".sqlite3")
+        os.close(handle)
+        try:
+            upload.save(tmp)
+            rows = read_entries_from_sqlite(tmp)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except sqlite3.Error:
+            return jsonify(error="Fichier de base illisible."), 400
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+        # Le contenu importe remplace l'existant : on repart d'un schema neuf
+        # plutot que de fusionner, pour que le resultat soit exactement le
+        # fichier fourni.
+        db.session.close()
+        db.drop_all()
+        db.create_all()
+        db.session.add_all(
+            DayEntry(day=r["day"], owner=r["owner"], note=r["note"]) for r in rows
+        )
+        db.session.commit()
+
+        app.logger.warning("Base importee : %d journee(s).", len(rows))
+        return jsonify(
+            ok=True,
+            imported=len(rows),
+            # L'annee affichee arrive dans le formulaire, l'envoi etant multipart.
+            stats=build_stats(_stats_year(request.form, date.today())),
+        )
+
     @app.get("/healthz")
     def healthz():
         db.session.execute(db.text("SELECT 1"))
         return jsonify(status="ok", dog="DEX")
 
     # ------------------------------ erreurs -------------------------------- #
+
+    @app.errorhandler(413)
+    def too_large(_):
+        limit = MAX_IMPORT_BYTES // (1024 * 1024)
+        if request.path.startswith("/api/"):
+            return jsonify(error="Fichier trop volumineux (max %d Mo)." % limit), 413
+        return (
+            render_template(
+                "error.html",
+                code=413,
+                message="Fichier trop volumineux (max %d Mo)." % limit,
+            ),
+            413,
+        )
 
     @app.errorhandler(404)
     def not_found(_):
