@@ -175,14 +175,10 @@ def scope_block(counts: dict, total_days: int | None = None) -> dict:
     return block
 
 
-def build_stats(year: int, month: int) -> dict:
-    first, last = month_bounds(year, month)
+def build_stats(year: int) -> dict:
+    """Bilan de l'annee : les totaux sont annuels, jamais mensuels."""
     jan1, dec31 = date(year, 1, 1), date(year, 12, 31)
-    return {
-        "month": scope_block(count_days(first, last), (last - first).days + 1),
-        "year": scope_block(count_days(jan1, dec31), (dec31 - jan1).days + 1),
-        "total": scope_block(count_days()),
-    }
+    return scope_block(count_days(jan1, dec31), (dec31 - jan1).days + 1)
 
 
 def entries_between(start: date, end: date) -> dict:
@@ -277,7 +273,7 @@ def create_app() -> Flask:
             month=month,
             weeks=weeks,
             entries=entries,
-            stats=build_stats(year, month),
+            stats=build_stats(year),
             prev=(prev_y, prev_m),
             next=(next_y, next_m),
             month_label="%s %s" % (MONTH_NAMES[month - 1], year),
@@ -304,13 +300,11 @@ def create_app() -> Flask:
                 }
             )
 
-        jan1, dec31 = date(year, 1, 1), date(year, 12, 31)
         return render_template(
             "year.html",
             year=year,
             months=months,
-            summary=scope_block(count_days(jan1, dec31), (dec31 - jan1).days + 1),
-            overall=scope_block(count_days()),
+            summary=build_stats(year),
         )
 
     @app.route("/login", methods=["GET", "POST"])
@@ -352,15 +346,23 @@ def create_app() -> Flask:
 
     @app.get("/api/stats")
     def api_stats():
-        today = date.today()
         try:
-            year = int(request.args.get("year", today.year))
-            month = int(request.args.get("month", today.month))
+            year = int(request.args.get("year", date.today().year))
         except ValueError:
-            return jsonify(error="Année ou mois invalide."), 400
-        if not 1 <= month <= 12:
-            return jsonify(error="Mois invalide."), 400
-        return jsonify(stats=build_stats(year, month))
+            return jsonify(error="Année invalide."), 400
+        if not 1970 <= year <= 2200:
+            return jsonify(error="Année hors limites."), 400
+        return jsonify(stats=build_stats(year))
+
+    def _stats_year(payload, fallback: date) -> int:
+        """Annee du bilan a renvoyer : celle affichee par le client si elle est
+        fournie, sinon celle de la premiere date touchee. Sans cela, peindre
+        une plage a cheval sur deux annees renvoie le bilan de la mauvaise."""
+        try:
+            year = int(payload.get("year"))
+        except (TypeError, ValueError):
+            return fallback.year
+        return year if 1970 <= year <= 2200 else fallback.year
 
     def _read_dates(payload) -> list[date]:
         raw = payload.get("dates")
@@ -415,10 +417,9 @@ def create_app() -> Flask:
                 db.session.delete(row)
 
         db.session.commit()
-        focus = days[0]
         return jsonify(
             entries=entries_between(days[0], days[-1]),
-            stats=build_stats(focus.year, focus.month),
+            stats=build_stats(_stats_year(payload, days[0])),
         )
 
     @app.delete("/api/entries")
@@ -432,10 +433,9 @@ def create_app() -> Flask:
 
         DayEntry.query.filter(DayEntry.day.in_(days)).delete(synchronize_session=False)
         db.session.commit()
-        focus = days[0]
         return jsonify(
             entries=entries_between(days[0], days[-1]),
-            stats=build_stats(focus.year, focus.month),
+            stats=build_stats(_stats_year(payload, days[0])),
         )
 
     @app.get("/healthz")

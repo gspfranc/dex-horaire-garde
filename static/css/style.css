@@ -381,18 +381,14 @@ body.brush-on .calendar { touch-action: none; }
 
 /* ------------------------------ statistiques ------------------------------ */
 
-.scopetabs {
-  display: flex; gap: 3px; padding: 4px; margin-bottom: 18px;
-  background: rgba(0, 0, 0, .3); border: 1px solid var(--line); border-radius: 12px;
+.statshead {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 16px; padding-bottom: 13px;
+  border-bottom: 1px solid var(--line);
 }
-.scopetab {
-  flex: 1; padding: 8px 6px; border-radius: 9px; cursor: pointer;
-  border: 1px solid transparent; background: transparent;
-  color: var(--muted); font-size: .8rem; font-weight: 600;
-  transition: all .16s ease;
-}
-.scopetab:hover { color: var(--text); }
-.scopetab.is-active { background: var(--surface-2); border-color: var(--line-strong); color: var(--text); }
+.statshead h2 { font-size: 1.05rem; }
+.statshead a { margin-left: auto; font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.statshead a:hover { color: var(--oli); }
 
 .balance { margin-bottom: 18px; }
 .balance__bar {

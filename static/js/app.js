@@ -22,8 +22,8 @@
     people: ["Oli", "Phil"],
   });
 
+  // Bilan de l'annee affichee. Les totaux sont annuels, jamais mensuels.
   let STATS = readJSON("bootstrap-stats", null);
-  let scope = "month";
 
   const calendar = document.getElementById("calendar");
   const statsPanel = document.getElementById("stats");
@@ -80,7 +80,7 @@
   }
 
   function caption(block) {
-    if (!block || !block.tagged) return "Aucune journée attribuée pour cette période.";
+    if (!block || !block.tagged) return "Aucune journée attribuée en " + CONFIG.year + ".";
     if (!block.leader) return "<b>Parfaitement à égalité</b> — " + block.counts.Oli + " jours chacun.";
     const plural = block.gap > 1 ? "jours" : "jour";
     return "<b>" + block.leader + "</b> a " + block.gap + " " + plural + " de plus.";
@@ -88,8 +88,7 @@
 
   function renderStats() {
     if (!statsPanel || !STATS) return;
-    const block = STATS[scope];
-    if (!block) return;
+    const block = STATS;
 
     statsPanel.querySelectorAll("[data-metric]").forEach((node) => {
       const path = node.dataset.metric;
@@ -107,20 +106,7 @@
     });
   }
 
-  if (statsPanel) {
-    statsPanel.querySelectorAll(".scopetab").forEach((tab) => {
-      tab.addEventListener("click", () => {
-        scope = tab.dataset.scope;
-        statsPanel.querySelectorAll(".scopetab").forEach((t) => {
-          const active = t === tab;
-          t.classList.toggle("is-active", active);
-          t.setAttribute("aria-selected", String(active));
-        });
-        renderStats();
-      });
-    });
-    renderStats();
-  }
+  if (statsPanel) renderStats();
 
   /* ------------------------- application des entrées ---------------------- */
 
@@ -148,10 +134,13 @@
   /* -------------------------------- requêtes ------------------------------ */
 
   async function send(method, body) {
+    // « year » indique l'année affichée, pour que le bilan renvoyé soit le bon
+    // même quand la plage modifiée chevauche deux années.
+    const outgoing = Object.assign({ year: CONFIG.year }, body);
     const response = await fetch("/api/entries", {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(outgoing),
     });
 
     if (response.status === 401) {

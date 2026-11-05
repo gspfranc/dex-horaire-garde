@@ -75,10 +75,9 @@
   </div>
 
   <aside class="panel panel--stats" id="stats">
-    <div class="scopetabs" role="tablist" aria-label="Période des statistiques">
-      <button type="button" class="scopetab is-active" data-scope="month" role="tab" aria-selected="true">Ce mois</button>
-      <button type="button" class="scopetab" data-scope="year" role="tab" aria-selected="false">{{ year }}</button>
-      <button type="button" class="scopetab" data-scope="total" role="tab" aria-selected="false">Total</button>
+    <div class="statshead">
+      <h2>Bilan {{ year }}</h2>
+      <a href="{{ url_for('year_view', year=year) }}">Détail →</a>
     </div>
 
     <div class="balance">
@@ -98,7 +97,7 @@
           <span class="statcard__name">{{ person.label }}</span>
           <span class="statcard__share" data-metric="shares.{{ name }}" data-suffix="%">0%</span>
         </div>
-        <div class="statcard__value"><strong data-metric="counts.{{ name }}">0</strong><span>jours</span></div>
+        <div class="statcard__value"><strong data-metric="counts.{{ name }}">0</strong><span>jours en {{ year }}</span></div>
       </div>
       {% endfor %}
 
@@ -111,7 +110,7 @@
 
     <div class="statfoot">
       {% include 'partials/paw.svg' %}
-      <span>Les totaux se recalculent automatiquement à chaque modification.</span>
+      <span>Totaux annuels, recalculés automatiquement à chaque modification.</span>
     </div>
   </aside>
 </section>

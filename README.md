@@ -113,9 +113,13 @@ pour agir sur la journée sélectionnée, `Échap` pour fermer la fiche.
 
 ### Statistiques
 
-Le panneau de droite bascule entre **Ce mois**, **l'année** et **Total**. Il affiche
-pour chacun le nombre de jours, le pourcentage, l'écart entre les deux, et le
-nombre de journées encore non attribuées. Tout se recalcule à chaque modification.
+Les totaux sont **annuels** : le panneau de droite affiche le bilan de l'année
+affichée — nombre de jours de chacun, pourcentage, écart entre les deux et
+nombre de journées encore non attribuées. Il n'y a volontairement pas de total
+par mois : sur une garde partagée, c'est l'équilibre sur l'année qui compte.
+Tout se recalcule à chaque modification.
+
+La vue annuelle rappelle ce même bilan, avec le compte de chaque mois en vignette.
 
 ---
 
@@ -173,7 +177,7 @@ Lecture publique, écriture réservée aux sessions authentifiées.
 | Méthode | Route | Rôle |
 |---|---|---|
 | `GET` | `/api/entries?start=AAAA-MM-JJ&end=AAAA-MM-JJ` | Journées d'un intervalle |
-| `GET` | `/api/stats?year=2026&month=11` | Compteurs mois / année / total |
+| `GET` | `/api/stats?year=2026` | Bilan de l'année (compteurs, parts, écart) |
 | `POST` | `/api/entries` | Enregistrer — `{"dates": ["2026-11-10"], "owner": "Oli", "note": "Vacances"}` |
 | `DELETE` | `/api/entries` | Vider — `{"dates": ["2026-11-10"]}` |
 | `GET` | `/healthz` | Sonde de santé (utilisée par Docker) |
@@ -186,6 +190,9 @@ Une journée dont le gardien **et** la note sont vides est supprimée de la base
 
 ## Notes techniques
 
+- **La base de données est créée automatiquement au premier démarrage** : le
+  dossier de données et les tables sont mis en place au lancement, rien à
+  initialiser à la main. Elle n'est pas versionnée (voir `.gitignore`).
 - Une seule ligne par date (contrainte d'unicité) ; les compteurs sont des
   agrégats SQL `GROUP BY`, jamais des valeurs dénormalisées — ils ne peuvent pas
   se désynchroniser.

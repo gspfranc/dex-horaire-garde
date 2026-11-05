@@ -32,7 +32,7 @@
     <div class="statcard statcard--meta">
       <div class="statcard__row"><span>Écart {{ year }}</span><strong>{{ summary.gap }}{% if summary.leader %} <em>({{ summary.leader }})</em>{% endif %}</strong></div>
       <div class="statcard__row"><span>Attribués</span><strong>{{ summary.tagged }} / {{ summary.total_days }}</strong></div>
-      <div class="statcard__row"><span>Total historique</span><strong>{{ overall.counts['Oli'] }} / {{ overall.counts['Phil'] }}</strong></div>
+      <div class="statcard__row"><span>Non attribués</span><strong>{{ summary.untagged }}</strong></div>
     </div>
   </div>
 </section>
