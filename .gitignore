@@ -5,11 +5,22 @@ venv/
 env/
 
 # Le dossier data/ est versionne vide (via .gitkeep) pour exister apres un
-# clone ; son contenu, dont la base SQLite creee au premier demarrage, non.
+# clone ; son contenu, dont la base creee au premier demarrage, non.
 data/*
 !data/.gitkeep
+
+# Bases SQLite, ou qu'elles soient, y compris les fichiers annexes que
+# SQLite cree a cote (journal, write-ahead log, memoire partagee).
+*.sqlite
 *.sqlite3
 *.db
+*.db3
+*-journal
+*-wal
+*-shm
 
 .env
+.env.*
+!.env.example
 .DS_Store
+Thumbs.db
