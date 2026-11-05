@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Connexion — DEX{% endblock %}
+{% block body_class %}page-login{% endblock %}
+
+{% block content %}
+<section class="loginwrap">
+  <form class="panel logincard" method="post" action="{{ url_for('login') }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="logincard__mark">{% include 'partials/dog.svg' %}</div>
+    <h1>Mode édition</h1>
+    <p class="logincard__sub">Entrez le mot de passe pour modifier l'horaire de DEX.<br>La consultation reste libre pour tout le monde.</p>
+
+    <label class="field">
+      <span>Mot de passe</span>
+      <input type="password" name="password" required autofocus autocomplete="current-password" placeholder="••••••••">
+    </label>
+
+    <button class="btn btn--primary btn--block" type="submit">Déverrouiller</button>
+    <a class="logincard__back" href="{{ next_url }}">← Retour au calendrier</a>
+  </form>
+</section>
+{% endblock %}

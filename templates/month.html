@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}{{ month_label }} — DEX{% endblock %}
+{% block body_class %}page-month{% endblock %}
+
+{% block content %}
+<section class="panel panel--head">
+  <div class="monthnav">
+    <a class="iconbtn" href="{{ url_for('month_view', year=prev[0], month=prev[1]) }}" aria-label="Mois précédent">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <div class="monthnav__title">
+      <h1>{{ month_names[month - 1] }} <span>{{ year }}</span></h1>
+      <a class="monthnav__year" href="{{ url_for('year_view', year=year) }}">Voir l'année {{ year }} →</a>
+    </div>
+    <a class="iconbtn" href="{{ url_for('month_view', year=next[0], month=next[1]) }}" aria-label="Mois suivant">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a class="btn btn--ghost monthnav__today" href="{{ url_for('month_view', year=today_year, month=today_month) }}">Aujourd'hui</a>
+  </div>
+
+  {% if can_edit %}
+  <div class="brushbar" id="brushbar">
+    <span class="brushbar__label">{% include 'partials/paw.svg' %} Pinceau</span>
+    <div class="brushbar__group" role="group" aria-label="Choix du pinceau">
+      <button type="button" class="brush is-active" data-brush="" aria-pressed="true">Détails</button>
+      {% for name, person in people.items() %}
+      <button type="button" class="brush brush--{{ name|lower }}" data-brush="{{ name }}" aria-pressed="false">{{ person.label }}</button>
+      {% endfor %}
+      <button type="button" class="brush brush--erase" data-brush="__erase" aria-pressed="false">Effacer</button>
+    </div>
+    <span class="brushbar__hint" id="brush-hint">Cliquez un jour pour ouvrir sa fiche.</span>
+  </div>
+  {% else %}
+  <p class="readonly-note">
+    {% include 'partials/paw.svg' %}
+    Mode lecture seule — <a href="{{ url_for('login', next=request.path) }}">connectez-vous</a> pour modifier l'horaire.
+  </p>
+  {% endif %}
+</section>
+
+<section class="layout">
+  <div class="panel panel--calendar">
+    <div class="weekdays" aria-hidden="true">
+      {% for d in day_abbr %}<span class="{{ 'is-weekend' if loop.index0 in weekend_columns }}">{{ d }}</span>{% endfor %}
+    </div>
+
+    <div class="calendar" id="calendar" role="grid" aria-label="Calendrier de {{ month_label }}">
+      {% for week in weeks %}
+        {% for d in week %}
+          {% set iso = d.isoformat() %}
+          {% set entry = entries.get(iso) %}
+          <div class="day{% if d.month != month %} is-outside{% endif %}{% if iso == today_iso %} is-today{% endif %}{% if d.weekday() >= 5 %} is-weekend{% endif %}"
+               data-date="{{ iso }}"
+               data-owner="{{ entry.owner if entry and entry.owner else '' }}"
+               role="gridcell" tabindex="0"
+               aria-label="{{ d.day }} {{ month_names[d.month - 1] }}{% if entry and entry.owner %} — {{ entry.owner }}{% endif %}{% if entry and entry.note %} — {{ entry.note }}{% endif %}">
+            <div class="day__top">
+              <span class="day__num">{{ d.day }}</span>
+              <span class="day__owner">{{ entry.owner if entry and entry.owner else '' }}</span>
+            </div>
+            <div class="day__note">{{ entry.note if entry and entry.note else '' }}</div>
+            <span class="day__paw">{% include 'partials/paw.svg' %}</span>
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    <div class="legend">
+      {% for name, person in people.items() %}
+      <span class="legend__item"><i class="swatch swatch--{{ name|lower }}"></i>{{ person.label }}</span>
+      {% endfor %}
+      <span class="legend__item"><i class="swatch swatch--empty"></i>Non attribué</span>
+      {% if can_edit %}<span class="legend__kbd">Astuce : glissez avec un pinceau pour peindre plusieurs jours.</span>{% endif %}
+    </div>
+  </div>
+
+  <aside class="panel panel--stats" id="stats">
+    <div class="scopetabs" role="tablist" aria-label="Période des statistiques">
+      <button type="button" class="scopetab is-active" data-scope="month" role="tab" aria-selected="true">Ce mois</button>
+      <button type="button" class="scopetab" data-scope="year" role="tab" aria-selected="false">{{ year }}</button>
+      <button type="button" class="scopetab" data-scope="total" role="tab" aria-selected="false">Total</button>
+    </div>
+
+    <div class="balance">
+      <div class="balance__bar">
+        {% for name in people %}
+        <span class="balance__seg balance__seg--{{ name|lower }}" data-metric="shares.{{ name }}" data-style="width"></span>
+        {% endfor %}
+      </div>
+      <p class="balance__caption" data-metric="caption">—</p>
+    </div>
+
+    <div class="statcards">
+      {% for name, person in people.items() %}
+      <div class="statcard statcard--{{ name|lower }}">
+        <div class="statcard__head">
+          <span class="statcard__dot"></span>
+          <span class="statcard__name">{{ person.label }}</span>
+          <span class="statcard__share" data-metric="shares.{{ name }}" data-suffix="%">0%</span>
+        </div>
+        <div class="statcard__value"><strong data-metric="counts.{{ name }}">0</strong><span>jours</span></div>
+      </div>
+      {% endfor %}
+
+      <div class="statcard statcard--meta">
+        <div class="statcard__row"><span>Écart</span><strong data-metric="gap">0</strong></div>
+        <div class="statcard__row"><span>Jours attribués</span><strong data-metric="tagged">0</strong></div>
+        <div class="statcard__row"><span>Non attribués</span><strong data-metric="untagged">—</strong></div>
+      </div>
+    </div>
+
+    <div class="statfoot">
+      {% include 'partials/paw.svg' %}
+      <span>Les totaux se recalculent automatiquement à chaque modification.</span>
+    </div>
+  </aside>
+</section>
+
+{% if can_edit %}
+<div class="modal" id="editor" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <form class="modal__panel" id="editor-form" autocomplete="off">
+    <header class="modal__head">
+      <div>
+        <h2 id="editor-title">Journée</h2>
+        <p id="editor-sub">Choisissez le gardien et ajoutez une note.</p>
+      </div>
+      <button type="button" class="iconbtn iconbtn--sm" data-close aria-label="Fermer">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <fieldset class="ownerpick">
+      <legend>Gardien</legend>
+      {% for name, person in people.items() %}
+      <button type="button" class="ownerpick__btn ownerpick__btn--{{ name|lower }}" data-owner="{{ name }}">
+        {% include 'partials/paw.svg' %}{{ person.label }}
+      </button>
+      {% endfor %}
+      <button type="button" class="ownerpick__btn ownerpick__btn--none" data-owner="">Aucun</button>
+    </fieldset>
+
+    <label class="field">
+      <span>Note libre</span>
+      <input type="text" id="editor-note" list="note-presets" maxlength="500" placeholder="Vacances, école, vétérinaire…">
+    </label>
+    <datalist id="note-presets">
+      {% for preset in note_presets %}<option value="{{ preset }}"></option>{% endfor %}
+    </datalist>
+
+    <label class="field field--range">
+      <span class="field__check">
+        <input type="checkbox" id="editor-range-on">
+        Appliquer jusqu'au
+      </span>
+      <input type="date" id="editor-range-end">
+    </label>
+
+    <footer class="modal__foot">
+      <button type="button" class="btn btn--danger" id="editor-clear">Effacer la journée</button>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-close>Annuler</button>
+        <button type="submit" class="btn btn--primary">Enregistrer</button>
+      </div>
+    </footer>
+  </form>
+</div>
+{% endif %}
+
+<script id="bootstrap-stats" type="application/json">{{ stats|tojson }}</script>
+<script id="bootstrap-config" type="application/json">{{ {'year': year, 'month': month, 'canEdit': can_edit, 'monthNames': month_names, 'dayNames': day_abbr, 'people': people|list} |tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% endblock %}

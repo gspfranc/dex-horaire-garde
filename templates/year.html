@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}{{ year }} — DEX{% endblock %}
+{% block body_class %}page-year{% endblock %}
+
+{% block content %}
+<section class="panel panel--head">
+  <div class="monthnav">
+    <a class="iconbtn" href="{{ url_for('year_view', year=year - 1) }}" aria-label="Année précédente">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <div class="monthnav__title">
+      <h1>Année <span>{{ year }}</span></h1>
+      <a class="monthnav__year" href="{{ url_for('month_view', year=year, month=today_month if year == today_year else 1) }}">Vue mensuelle →</a>
+    </div>
+    <a class="iconbtn" href="{{ url_for('year_view', year=year + 1) }}" aria-label="Année suivante">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a class="btn btn--ghost monthnav__today" href="{{ url_for('year_view', year=today_year) }}">Cette année</a>
+  </div>
+
+  <div class="yearsummary">
+    {% for name, person in people.items() %}
+    <div class="statcard statcard--{{ name|lower }}">
+      <div class="statcard__head">
+        <span class="statcard__dot"></span>
+        <span class="statcard__name">{{ person.label }}</span>
+        <span class="statcard__share">{{ summary.shares[name] }}%</span>
+      </div>
+      <div class="statcard__value"><strong>{{ summary.counts[name] }}</strong><span>jours en {{ year }}</span></div>
+    </div>
+    {% endfor %}
+    <div class="statcard statcard--meta">
+      <div class="statcard__row"><span>Écart {{ year }}</span><strong>{{ summary.gap }}{% if summary.leader %} <em>({{ summary.leader }})</em>{% endif %}</strong></div>
+      <div class="statcard__row"><span>Attribués</span><strong>{{ summary.tagged }} / {{ summary.total_days }}</strong></div>
+      <div class="statcard__row"><span>Total historique</span><strong>{{ overall.counts['Oli'] }} / {{ overall.counts['Phil'] }}</strong></div>
+    </div>
+  </div>
+</section>
+
+<section class="minigrid">
+  {% for m in months %}
+  <article class="minimonth{% if year == today_year and m.month == today_month %} is-current{% endif %}">
+    <header class="minimonth__head">
+      <a href="{{ url_for('month_view', year=year, month=m.month) }}">{{ m.label }}</a>
+      <span class="minimonth__counts">
+        {% for name in people %}<i class="chip chip--{{ name|lower }}">{{ m.counts[name] }}</i>{% endfor %}
+      </span>
+    </header>
+    <div class="minimonth__dows" aria-hidden="true">
+      {% for d in day_abbr %}<span>{{ d[0] }}</span>{% endfor %}
+    </div>
+    <div class="minimonth__grid">
+      {% for week in m.weeks %}
+        {% for d in week %}
+          {% set iso = d.isoformat() %}
+          {% set entry = m.entries.get(iso) %}
+          {% if d.month != m.month %}
+            <span class="minidate is-blank"></span>
+          {% else %}
+            <a class="minidate{% if iso == today_iso %} is-today{% endif %}"
+               href="{{ url_for('month_view', year=year, month=m.month) }}#{{ iso }}"
+               data-owner="{{ entry.owner if entry and entry.owner else '' }}"
+               title="{{ d.day }} {{ m.label }}{% if entry and entry.owner %} — {{ entry.owner }}{% endif %}{% if entry and entry.note %} · {{ entry.note }}{% endif %}">{{ d.day }}{% if entry and entry.note %}<i class="minidate__dot"></i>{% endif %}</a>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,19 @@
+services:
+  dex:
+    build: .
+    image: dex-horaire:latest
+    container_name: dex-horaire
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # Mot de passe du mode edition (a changer !)
+      EDIT_PASSWORD: "${EDIT_PASSWORD:-dex}"
+      # Cle de session : fixez-la pour garder les sessions apres un redemarrage
+      SECRET_KEY: "${SECRET_KEY:-change-moi-en-production}"
+      DEX_DATA_DIR: /data
+    volumes:
+      - dex-data:/data
+
+volumes:
+  dex-data:

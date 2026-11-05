@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}DEX — Horaire de garde{% endblock %}</title>
+  <meta name="description" content="Calendrier de garde partagée du chien DEX entre Oli et Phil.">
+  <meta name="theme-color" content="#0b1120">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}" data-can-edit="{{ 'true' if can_edit else 'false' }}">
+
+  {% include 'partials/sprite.svg' %}
+
+  <div class="paw-field" aria-hidden="true">
+    {% for i in range(14) %}<span class="paw-field__paw paw-field__paw--{{ i }}">{% include 'partials/paw.svg' %}</span>{% endfor %}
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('home') }}">
+      <span class="brand__mark">{% include 'partials/dog.svg' %}</span>
+      <span class="brand__text">
+        <strong>DEX</strong>
+        <small>Horaire de garde partagée</small>
+      </span>
+    </a>
+
+    <nav class="topbar__nav">
+      <a class="navlink {% if request.endpoint == 'month_view' %}is-active{% endif %}"
+         href="{{ url_for('month_view', year=today_year, month=today_month) }}">Mois</a>
+      <a class="navlink {% if request.endpoint == 'year_view' %}is-active{% endif %}"
+         href="{{ url_for('year_view', year=today_year) }}">Année</a>
+    </nav>
+
+    <div class="topbar__auth">
+      {% if can_edit %}
+        <span class="pill pill--live"><span class="dot"></span>Édition</span>
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="btn btn--ghost" type="submit">Verrouiller</button>
+        </form>
+      {% else %}
+        <span class="pill"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2M5 10h14v10H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Lecture seule</span>
+        <a class="btn btn--primary" href="{{ url_for('login', next=request.path) }}">Se connecter</a>
+      {% endif %}
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes">
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <span>{% include 'partials/paw.svg' %} DEX — garde partagée entre
+      <b style="color: {{ people['Oli'].color }}">Oli</b> et
+      <b style="color: {{ people['Phil'].color }}">Phil</b></span>
+    <span class="footer__hint">Données enregistrées localement · SQLite</span>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

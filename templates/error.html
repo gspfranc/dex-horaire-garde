@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Erreur {{ code }} — DEX{% endblock %}
+{% block body_class %}page-error{% endblock %}
+
+{% block content %}
+<section class="loginwrap">
+  <div class="panel logincard">
+    <div class="logincard__mark">{% include 'partials/dog.svg' %}</div>
+    <h1>{{ code }}</h1>
+    <p class="logincard__sub">{{ message }}</p>
+    <a class="btn btn--primary btn--block" href="{{ url_for('home') }}">Retour au calendrier</a>
+  </div>
+</section>
+{% endblock %}

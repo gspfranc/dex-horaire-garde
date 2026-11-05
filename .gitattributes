@@ -1,0 +1,11 @@
+# Normalise les fins de ligne : LF dans le depot et a la sortie, pour que les
+# scripts shell et le Dockerfile restent utilisables sous Linux.
+* text=auto eol=lf
+
+# Les scripts PowerShell restent en CRLF, c'est leur convention sous Windows.
+*.ps1 text eol=crlf
+
+# Binaires : aucune conversion.
+*.png binary
+*.jpg binary
+*.ico binary
