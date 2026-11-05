@@ -32,8 +32,32 @@ Commandes utiles :
 docker compose logs -f        # suivre les journaux
 docker compose restart        # redémarrer
 docker compose down           # arrêter (les données sont conservées)
-docker compose down -v        # arrêter ET supprimer les données
 ```
+
+### Où sont les données ?
+
+Le dossier `data/` du projet est monté dans le conteneur. Le fichier de base
+apparaît donc **directement à côté des sources**, dès le premier démarrage :
+
+```
+data/dex.sqlite3
+```
+
+Vous pouvez le copier pour le sauvegarder, ou le remplacer conteneur arrêté.
+Comme il vit sur votre machine et non dans Docker, `docker compose down` et
+même la suppression de l'image ne l'effacent pas.
+
+Pour confier plutôt le stockage à Docker (volume nommé, hors du projet) :
+
+```bash
+DEX_DATA_PATH=dex-data docker compose up -d
+```
+
+> **Sur un hôte Linux**, le conteneur tourne sous l'uid `10001` et doit pouvoir
+> écrire dans le dossier monté : `sudo chown -R 10001:10001 data`. Sous Docker
+> Desktop (Windows, macOS) il n'y a rien à faire. Si les droits manquent,
+> l'application s'arrête avec un message qui l'explique, au lieu d'une erreur
+> de base de données obscure.
 
 ### Sans docker compose
 
@@ -43,7 +67,7 @@ docker run -d --name dex \
   -p 8080:8080 \
   -e EDIT_PASSWORD="mon-mot-de-passe" \
   -e SECRET_KEY="$(python -c 'import secrets;print(secrets.token_hex(32))')" \
-  -v dex-data:/data \
+  -v "$(pwd)/data:/data" \
   dex-horaire
 ```
 
@@ -160,6 +184,7 @@ Pensez à exporter avant d'importer ou de réinitialiser.
 | `EDIT_PASSWORD_HASH` | — | Empreinte Werkzeug, prioritaire sur `EDIT_PASSWORD` |
 | `SECRET_KEY` | aléatoire au démarrage | Signature des sessions. **Fixez-la** pour que les sessions survivent à un redémarrage |
 | `DATABASE_URL` | `sqlite:///<DEX_DATA_DIR>/dex.sqlite3` | Chaîne de connexion SQLAlchemy |
+| `DEX_DATA_PATH` | `./data` | Côté hôte : dossier (ou volume nommé) monté dans le conteneur |
 | `DEX_DATA_DIR` | `./data` (`/data` en conteneur) | Dossier de la base de données |
 | `PORT` | `5000` en local, `8080` en conteneur | Port d'écoute |
 

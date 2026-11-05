@@ -13,7 +13,14 @@ services:
       SECRET_KEY: "${SECRET_KEY:-change-moi-en-production}"
       DEX_DATA_DIR: /data
     volumes:
-      - dex-data:/data
+      # Le dossier data/ du projet est monte dans le conteneur : le fichier
+      # dex.sqlite3 apparait donc directement a cote des sources, ou vous
+      # pouvez le voir, le copier et le sauvegarder.
+      #
+      # Pour utiliser a la place un volume Docker nomme (gere par Docker, hors
+      # du projet), lancez avec DEX_DATA_PATH=dex-data.
+      - "${DEX_DATA_PATH:-./data}:/data"
 
 volumes:
+  # Declare le volume nomme, pour que DEX_DATA_PATH=dex-data fonctionne.
   dex-data:

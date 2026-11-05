@@ -285,7 +285,24 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     data_dir = os.environ.get("DEX_DATA_DIR", os.path.join(app.root_path, "data"))
-    os.makedirs(data_dir, exist_ok=True)
+
+    # Le dossier de donnees est cree au premier demarrage, puis verifie en
+    # ecriture : avec un dossier de l'hote monte dans un conteneur, les droits
+    # peuvent manquer, et l'erreur SQLAlchemy qui en decoule n'explique rien.
+    try:
+        os.makedirs(data_dir, exist_ok=True)
+        probe = os.path.join(data_dir, ".dex-write-test")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write("ok")
+        os.unlink(probe)
+    except OSError as exc:
+        raise RuntimeError(
+            "Le dossier de données « %s » n'est pas accessible en écriture "
+            "(%s). En Docker avec un dossier de l'hôte monté, donnez les droits "
+            "d'écriture à l'utilisateur du conteneur (uid 10001) — par exemple "
+            "« chown -R 10001:10001 data » sur un hôte Linux — ou repassez à un "
+            "volume Docker nommé avec DEX_DATA_PATH=dex-data." % (data_dir, exc)
+        ) from exc
 
     app.config.update(
         SECRET_KEY=os.environ.get("SECRET_KEY") or secrets.token_hex(32),
